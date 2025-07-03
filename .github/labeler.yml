@@ -41,10 +41,7 @@ area/storage:
   - changed-files:
     - any-glob-to-any-file:
       - registry/storage/**
-area/storage/azure:
-  - changed-files:
-    - any-glob-to-any-file:
-      - registry/storage/driver/azure/**
+
 area/storage/gcs:
   - changed-files:
     - any-glob-to-any-file:
