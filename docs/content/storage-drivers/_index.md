@@ -15,6 +15,7 @@ This storage driver package comes bundled with several drivers:
 - [s3](s3): A driver storing objects in an Amazon Simple Storage Service (S3) bucket.
 - [azure](azure): A driver storing objects in [Microsoft Azure Blob Storage](https://azure.microsoft.com/en-us/services/storage/).
 - [gcs](gcs): A driver storing objects in a [Google Cloud Storage](https://cloud.google.com/storage/) bucket.
+- [cos](cos): A driver storing objects in [Tencent Cloud COS (Cloud Object Storage)](https://intl.cloud.tencent.com/product/cos).
 - oss: *NO LONGER SUPPORTED*
 - swift: *NO LONGER SUPPORTED*
 
