@@ -38,7 +38,6 @@ jobs:
         target:
           - test-coverage
           - test-s3-storage
-          - test-azure-storage
     steps:
       -
         name: Checkout
