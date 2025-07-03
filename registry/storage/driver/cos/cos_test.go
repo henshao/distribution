@@ -3,19 +3,17 @@ package cos
 import (
 	"context"
 	"os"
+	"strconv"
 	"testing"
 
 	storagedriver "github.com/distribution/distribution/v3/registry/storage/driver"
 	"github.com/distribution/distribution/v3/registry/storage/driver/testsuites"
-	"gopkg.in/check.v1"
 )
 
-// Hook up gocheck into the "go test" runner.
-func Test(t *testing.T) { check.TestingT(t) }
-
-var cosDriverConstructor func() (*Driver, error)
-
-var skipCheck func() string
+var (
+	cosDriverConstructor func() (*Driver, error)
+	skipCheck            func(tb testing.TB)
+)
 
 func init() {
 	secretID := os.Getenv("COS_SECRET_ID")
@@ -45,22 +43,54 @@ func init() {
 	}
 
 	// Skip COS tests if environment variables aren't set
-	skipCheck = func() string {
+	skipCheck = func(tb testing.TB) {
+		tb.Helper()
 		if secretID == "" || secretKey == "" || bucket == "" || region == "" {
-			return "Must set COS_SECRET_ID, COS_SECRET_KEY, COS_BUCKET, and COS_REGION to run COS tests"
+			tb.Skip("Must set COS_SECRET_ID, COS_SECRET_KEY, COS_BUCKET, and COS_REGION to run COS tests")
 		}
-		return ""
 	}
+}
 
-	testsuites.RegisterSuite(func() (storagedriver.StorageDriver, error) {
-		return cosDriverConstructor()
-	}, skipCheck)
+func newDriverConstructor(tb testing.TB) testsuites.DriverConstructor {
+	root := tb.TempDir()
+
+	return func() (storagedriver.StorageDriver, error) {
+		parameters := map[string]interface{}{
+			"secretid":      os.Getenv("COS_SECRET_ID"),
+			"secretkey":     os.Getenv("COS_SECRET_KEY"),
+			"region":        os.Getenv("COS_REGION"),
+			"bucket":        os.Getenv("COS_BUCKET"),
+			"rootdirectory": root,
+		}
+
+		if secure := os.Getenv("COS_SECURE"); secure != "" {
+			parameters["secure"] = secure
+		}
+
+		return FromParameters(context.Background(), parameters)
+	}
+}
+
+func TestCOSDriverSuite(t *testing.T) {
+	skipCheck(t)
+	skipVerify := false
+	if skipVerifyEnv := os.Getenv("COS_SKIP_VERIFY"); skipVerifyEnv != "" {
+		var err error
+		skipVerify, err = strconv.ParseBool(skipVerifyEnv)
+		if err != nil {
+			skipVerify = false
+		}
+	}
+	testsuites.Driver(t, newDriverConstructor(t), skipVerify)
+}
+
+func BenchmarkCOSDriverSuite(b *testing.B) {
+	skipCheck(b)
+	testsuites.BenchDriver(b, newDriverConstructor(b))
 }
 
 func TestEmptyRootList(t *testing.T) {
-	if skipCheck() != "" {
-		t.Skip(skipCheck())
-	}
+	skipCheck(t)
 
 	driver, err := cosDriverConstructor()
 	if err != nil {

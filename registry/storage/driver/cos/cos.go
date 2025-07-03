@@ -10,13 +10,11 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"path"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/distribution/distribution/v3/internal/dcontext"
 	storagedriver "github.com/distribution/distribution/v3/registry/storage/driver"
 	"github.com/distribution/distribution/v3/registry/storage/driver/base"
 	"github.com/distribution/distribution/v3/registry/storage/driver/factory"
@@ -196,7 +194,7 @@ func New(ctx context.Context, params *DriverParameters) (*Driver, error) {
 	})
 
 	// Test bucket access
-	if _, _, err := client.Bucket.Head(ctx); err != nil {
+	if _, err := client.Bucket.Head(ctx); err != nil {
 		return nil, fmt.Errorf("unable to access bucket %s in region %s: %v", params.Bucket, params.Region, err)
 	}
 
@@ -394,7 +392,7 @@ func (d *driver) List(ctx context.Context, opath string) ([]string, error) {
 		}
 		
 		for _, prefix := range result.CommonPrefixes {
-			name := prefix.Prefix
+			name := prefix
 			name = strings.TrimPrefix(name, d.RootDirectory)
 			if !strings.HasPrefix(name, "/") {
 				name = "/" + name
@@ -494,14 +492,15 @@ func (d *driver) RedirectURL(r *http.Request, path string) (string, error) {
 	// COS supports presigned URLs
 	cosPath := d.cosPath(path)
 	
+	// COS SDK GetPresignedURL expects secretID, secretKey, method, path, expired
 	presignedURL, err := d.Client.Object.GetPresignedURL(
 		context.Background(),
 		http.MethodGet,
 		cosPath,
-		cos.PresignedURLOptions{
-			Query:  &url.Values{},
-			Header: &http.Header{},
-		},
+		"", // secretID - empty to use default from client
+		"", // secretKey - empty to use default from client
+		time.Hour, // 1 hour expiration
+		nil, // no extra options
 	)
 	if err != nil {
 		return "", err
@@ -591,7 +590,7 @@ func (w *writer) uploadPart() error {
 	copy(data, w.buf.Bytes())
 	w.buf.Reset()
 	
-	result, _, err := w.driver.Client.Object.UploadPart(
+	result, err := w.driver.Client.Object.UploadPart(
 		w.ctx,
 		w.key,
 		w.uploadID,
